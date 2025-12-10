@@ -8,12 +8,12 @@ int sum(int a, int b, int c) {
 }
 
 int main() {
-  int a, b;
+  int a, b, c;
   cout << "Hello World" << endl;
   cout<<"como estas";
   cout << "hola";
   cout << "chau";
   cin >> a, b;
-  cout << sum(a, b) << endl;
+  cout << sum(a, b, c) << endl;
   return 0;
 }
