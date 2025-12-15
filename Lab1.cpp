@@ -8,18 +8,20 @@ int sum(int a, int b, int c) {
 }
 
 
-int sub(int a, int b, int c) {
+float sub(float a, float b, float c) {
   return a - b - c;
 }
 
 
-int divide(int a , int b){
+float divide(float a , float b){
   if(b == 0){
     cout << "Error: Division by zero" << endl;
     return 0;
   }
   return a / b;
 }
+
+
 
 int main() {
   int a, b, c;
