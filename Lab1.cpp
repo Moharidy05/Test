@@ -24,6 +24,9 @@ float divide(float a , float b){
 float multiply(float a, float b){
   return a * b;
 }
+ void displayMessage(string message) {
+  cout << message << endl;
+ }
 
 int main() {
   int a, b, c;
