@@ -21,7 +21,9 @@ float divide(float a , float b){
   return a / b;
 }
 
-
+float multiply(float a, float b){
+  return a * b;
+}
 
 int main() {
   int a, b, c;
