@@ -1,0 +1,6 @@
+streamlit
+tensorflow==2.21.0
+protobuf
+pandas
+numpy
+scikit-learn
