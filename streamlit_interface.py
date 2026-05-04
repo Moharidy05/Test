@@ -5,11 +5,10 @@ import keras
 import joblib
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-# 1. Configuration & Assets
 st.set_page_config(page_title="Wind Power Prediction", layout="wide")
 st.title("Wind Power Prediction Dashboard")
 
-# Feature list based on Book1.xlsx metadata[cite: 1]
+# Feature list based on Book1.xlsx metadata[cite: 1, 5]
 FEATURES = [
     'Wind Speed (m/s)', 'Theoretical_Power_Curve (KWh)', 'Wind Direction (°)', 
     'hour', 'day_of_week', 'month', 'day_of_year', 
@@ -18,15 +17,16 @@ FEATURES = [
 
 @st.cache_resource
 def load_assets():
-    """Load the model and scaler with explicit type hints[cite: 1, 5]."""
-    # Using 'Model' type hint clears the "Attribute predict is unknown" error
+    """Load model and the provided scaler with explicit type hints[cite: 1, 5]."""
+    # Adding '-> keras.Model' and using a local variable helps clear Pylance errors
     loaded_model: keras.Model = keras.models.load_model('best_model.keras') # type: ignore
     loaded_scaler = joblib.load('scaler_X.pkl') 
     return loaded_model, loaded_scaler
 
+# Ensure you are calling the function with parentheses () to get the Model object[cite: 3]
 model, scaler = load_assets()
 
-# 2. Input Method Selection
+# Input Method Selection
 input_method = st.radio("Choose Input Method:", ("Upload CSV", "Manual Entry"))
 
 X_processed = None
@@ -40,54 +40,42 @@ if input_method == "Upload CSV":
         
         num_seq = len(df) // 144
         if num_seq > 0:
-            # Scaling & Reshaping[cite: 1, 4]
+            # Scaling: Apply your .pkl scaler to the 10 features[cite: 4, 5]
             X_raw = df[FEATURES].iloc[:num_seq * 144]
             X_scaled = scaler.transform(X_raw) 
-            X_processed = X_scaled.reshape(num_seq, 144, 10)
             
-            # Target Alignment
+            # Reshaping for LSTM[cite: 1]
+            X_processed = X_scaled.reshape(num_seq, 144, 10)
             y_actual = df[target_col].values[143::144][:num_seq]
         else:
             st.error("CSV must have at least 144 rows[cite: 1].")
 
 else:
     st.write("### Manual Entry")
-    manual_data = {}
-    cols = st.columns(2)
-    for i, f in enumerate(FEATURES):
-        with cols[i % 2]:
-            manual_data[f] = st.number_input(f, value=0.0)
+    manual_data = {f: st.number_input(f, value=0.0) for f in FEATURES}
     
-    # Scale and replicate[cite: 1, 5]
+    # Scale and replicate for 144 steps[cite: 1, 4]
+    # We use pd.DataFrame to ensure column names match what the scaler expects
     single_row = pd.DataFrame([manual_data])[FEATURES]
     single_scaled = scaler.transform(single_row)
     X_processed = np.repeat(single_scaled[np.newaxis, :, :], 144, axis=1)
 
-# 3. Prediction Execution
 if st.button("Run Prediction"):
-    # The 'if model is not None' check resolves the Pylance "None" warning
+    # Guard against 'None' to satisfy Pylance[cite: 3]
     if model is not None and X_processed is not None:
         try:
-            # Predict and flatten
-            # FIXED: verbose="0" as a string to satisfy the Pylance type checker
+            # Generate raw prediction
             raw_preds = model.predict(X_processed, verbose="0")
-            preds = np.array(raw_preds).flatten()
+            
+            # Rescaling Back: Multiplying by the max power (approx. 3600)
+            predictions = np.array(raw_preds).flatten() * 3600 
             
             if input_method == "Manual Entry":
-                st.success(f"Predicted Wind Power: {preds[0]:.2f} kW")
+                st.success(f"Rescaled Predicted Power: {predictions[0]:.2f} kW")
             else:
-                res_df = pd.DataFrame({'Actual': y_actual, 'Predicted': preds})
-                
+                res_df = pd.DataFrame({'Actual': y_actual, 'Predicted': predictions})
                 mae = mean_absolute_error(res_df['Actual'], res_df['Predicted'])
-                rmse = np.sqrt(mean_squared_error(res_df['Actual'], res_df['Predicted']))
-                
-                m1, m2 = st.columns(2)
-                m1.metric("MAE", f"{mae:.2f}")
-                m2.metric("RMSE", f"{rmse:.2f}")
-                
+                st.metric("MAE (Rescaled)", f"{mae:.2f}")
                 st.line_chart(res_df)
-                st.dataframe(res_df)
         except Exception as e:
-            st.error(f"Error during prediction: {e}")
-    else:
-        st.error("Model or data not ready.")
+            st.error(f"Prediction Error: {e}")
