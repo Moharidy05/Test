@@ -1,6 +1,6 @@
 streamlit
-tensorflow==2.21.0
-protobuf
+tensorflow>=2.16.1
+keras>=3.0.0
 pandas
 numpy
 scikit-learn
